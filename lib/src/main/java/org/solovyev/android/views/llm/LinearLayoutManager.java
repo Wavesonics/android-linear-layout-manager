@@ -149,9 +149,8 @@ public class LinearLayoutManager extends android.support.v7.widget.LinearLayoutM
 					}
 				}
 				height += childDimensions[CHILD_HEIGHT];
-				if (i == 0) {
-					width = childDimensions[CHILD_WIDTH];
-				}
+        // Fit the largest child in this dimension
+				width = Math.max( width, childDimensions[ CHILD_WIDTH ] );
 				if (hasHeightSize && height >= heightSize) {
 					break;
 				}
@@ -166,9 +165,8 @@ public class LinearLayoutManager extends android.support.v7.widget.LinearLayoutM
 					}
 				}
 				width += childDimensions[CHILD_WIDTH];
-				if (i == 0) {
-					height = childDimensions[CHILD_HEIGHT];
-				}
+        // Fit the largest child in this dimension
+				height = Math.max( height, childDimensions[ CHILD_HEIGHT ] );
 				if (hasWidthSize && width >= widthSize) {
 					break;
 				}
@@ -261,6 +259,7 @@ public class LinearLayoutManager extends android.support.v7.widget.LinearLayoutM
 			return;
 		}
 
+    final ViewGroup.LayoutParams parentParams = getParentParams();
 		final RecyclerView.LayoutParams p = (RecyclerView.LayoutParams) child.getLayoutParams();
 
 		final int hPadding = getPaddingLeft() + getPaddingRight();
@@ -277,8 +276,8 @@ public class LinearLayoutManager extends android.support.v7.widget.LinearLayoutM
 		final int hDecoration = getRightDecorationWidth(child) + getLeftDecorationWidth(child);
 		final int vDecoration = getTopDecorationHeight(child) + getBottomDecorationHeight(child);
 
-		final int childWidthSpec = getChildMeasureSpec(widthSize, hPadding + hMargin + hDecoration, p.width, canScrollHorizontally());
-		final int childHeightSpec = getChildMeasureSpec(heightSize, vPadding + vMargin + vDecoration, p.height, canScrollVertically());
+		final int childWidthSpec = getChildDimenSpec( widthSize, vPadding + vMargin + vDecoration, p.width, canScrollHorizontally(), parentParams );
+		final int childHeightSpec = getChildDimenSpec( heightSize, hPadding + hMargin + hDecoration, p.height, canScrollVertically(), parentParams );
 
 		child.measure(childWidthSpec, childHeightSpec);
 
@@ -288,6 +287,36 @@ public class LinearLayoutManager extends android.support.v7.widget.LinearLayoutM
 		// as view is recycled let's not keep old measured values
 		makeInsetsDirty(p);
 		recycler.recycleView(child);
+	}
+  
+	private ViewGroup.LayoutParams getParentParams()
+	{
+		final ViewGroup.LayoutParams parentParams;
+		if( view != null )
+		{
+			parentParams = view.getLayoutParams();
+		}
+		else
+		{
+			parentParams = null;
+		}
+		return parentParams;
+	}
+
+	private int getChildDimenSpec( int parentSize, int padding, int childDimension, boolean canScroll, final ViewGroup.LayoutParams parentParams )
+	{
+		final int childHeightSpec;
+    // If the parent doesn't have a definite size, we must let the children determine the size. This handles
+		// the case of all wrap_content parents, as well as wrap_content children
+		if( parentParams != null && View.MeasureSpec.getMode( parentParams.height ) != View.MeasureSpec.EXACTLY )
+		{
+			childHeightSpec = View.MeasureSpec.makeMeasureSpec( 0, View.MeasureSpec.UNSPECIFIED );
+		}
+		else
+		{
+			childHeightSpec = getChildMeasureSpec( parentSize, padding, childDimension, canScroll );
+		}
+		return childHeightSpec;
 	}
 
 	private static void makeInsetsDirty(RecyclerView.LayoutParams p) {
